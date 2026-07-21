@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kubevoice.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubevoice.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "kubevoice.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        {{- include "kubevoice.labels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "kubevoice.serviceAccountName" . }}
+      containers:
+        - name: agent
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          # Production worker mode: registers with LiveKit and waits for jobs.
+          # The worker dials OUT to LiveKit Cloud — no ingress/Service needed.
+          args: ["start"]
+          envFrom:
+            - secretRef:
+                name: {{ .Values.existingSecret }}
+          {{- if .Values.health.enabled }}
+          ports:
+            - name: health
+              containerPort: {{ .Values.health.port }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

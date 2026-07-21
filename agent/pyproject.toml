@@ -1,0 +1,9 @@
+[project]
+name = "explore-livekit"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "kubernetes>=36.0.3",
+    "livekit-agents[silero,turn-detector]~=1.4",
+    "python-dotenv>=1.2.2",
+]

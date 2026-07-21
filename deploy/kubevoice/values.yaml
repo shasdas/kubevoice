@@ -1,0 +1,37 @@
+image:
+  repository: kubevoice-agent   # local image loaded into kind; override for a registry
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# Name of an existing Secret holding LIVEKIT_URL, LIVEKIT_API_KEY,
+# LIVEKIT_API_SECRET and model-provider keys. Created from your .env.local:
+#   kubectl -n kubevoice create secret generic kubevoice-secrets --from-env-file=.env.local
+existingSecret: kubevoice-secrets
+
+# The LiveKit Agents worker exposes an HTTP health endpoint when running
+# in `start` (production) mode. Verify the port your version uses
+# (commonly 8081) and adjust here if needed.
+health:
+  enabled: true
+  port: 8081
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "1"
+    memory: 2Gi
+
+rbac:
+  # Read-only, cluster-wide visibility for the agent's tools.
+  create: true
+
+serviceAccount:
+  create: true
+  name: kubevoice
+
+nodeSelector: {}
+tolerations: []

@@ -1,0 +1,8 @@
+# Two-node kind cluster: control-plane + worker.
+# The worker node makes the agent's "node health" tool more interesting to demo.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: kubevoice
+nodes:
+  - role: control-plane
+  - role: worker

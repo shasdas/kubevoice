@@ -1,0 +1,42 @@
+{{- if .Values.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "kubevoice.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "kubevoice.labels" . | nindent 4 }}
+{{- end }}
+{{- if .Values.rbac.create }}
+---
+# Deliberately READ-ONLY. The voice agent can observe the cluster but can
+# never mutate it. Write operations by voice are out of scope by design.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "kubevoice.fullname" . }}-readonly
+  labels:
+    {{- include "kubevoice.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "events", "nodes", "namespaces", "services"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "kubevoice.fullname" . }}-readonly
+  labels:
+    {{- include "kubevoice.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "kubevoice.fullname" . }}-readonly
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "kubevoice.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
