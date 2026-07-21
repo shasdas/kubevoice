@@ -9,6 +9,10 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 WORKDIR /app
 
+# Give uv's managed Python installs a predictable, chown-able home
+ENV UV_PYTHON_INSTALL_DIR=/opt/uv/python
+RUN mkdir -p /opt/uv/python
+
 # Install dependencies first (better layer caching)
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
@@ -20,7 +24,7 @@ COPY src/ ./src/
 RUN uv run python src/agent.py download-files
 
 # Run as non-root
-RUN useradd --create-home agent && chown -R agent:agent /app
+RUN useradd --create-home agent && chown -R agent:agent /app /opt/uv/python
 USER agent
 
 ENTRYPOINT ["uv", "run", "python", "src/agent.py"]

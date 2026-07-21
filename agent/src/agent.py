@@ -12,16 +12,32 @@ from livekit.agents.inference import TurnDetector
 from livekit.plugins import silero
 from kubernetes import client, config
 
-load_dotenv(".env")
+load_dotenv(".env.local")
 
 # Initialize Kubernetes Client (Dual-Mode: Local vs In-Cluster)
-try:
-    config.load_incluster_config()
-except config.ConfigException:
-    config.load_kube_config()
+# try:
+#     config.load_incluster_config()
+# except config.ConfigException:
+#     config.load_kube_config()
 
-core_api = client.CoreV1Api()
-apps_api = client.AppsV1Api()
+# core_api = client.CoreV1Api()
+# apps_api = client.AppsV1Api()
+
+_k8s_loaded = False
+
+def _ensure_k8s_config():
+    global _k8s_loaded
+    if _k8s_loaded:
+        return
+    try:
+        config.load_incluster_config()
+    except config.ConfigException:
+        config.load_kube_config()
+    _k8s_loaded = True
+
+def get_core_v1():
+    _ensure_k8s_config()
+    return client.CoreV1Api()
 
 
 class KubeVoiceAssistant(Agent):
@@ -40,9 +56,9 @@ class KubeVoiceAssistant(Agent):
         """Get cluster health summary across all namespaces or a specific namespace."""
         try:
             if namespace:
-                pods = core_api.list_namespaced_pod(namespace=namespace).items
+                pods = get_core_v1().list_namespaced_pod(namespace=namespace).items
             else:
-                pods = core_api.list_pod_for_all_namespaces().items
+                pods = get_core_v1().list_pod_for_all_namespaces().items
 
             unhealthy_pods = []
             for pod in pods:
@@ -74,7 +90,7 @@ class KubeVoiceAssistant(Agent):
     async def get_namespace_events(self, context: RunContext, namespace: str) -> str:
         """Get recent Kubernetes events for a specific namespace to diagnose errors."""
         try:
-            events = core_api.list_namespaced_event(namespace=namespace).items
+            events = get_core_v1().list_namespaced_event(namespace=namespace).items
             if not events:
                 return f"No recent events found in namespace '{namespace}'."
 
