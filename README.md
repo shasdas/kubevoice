@@ -66,8 +66,8 @@ helm install kubevoice ../deploy/kubevoice --namespace kubevoice
 - [x] Voice agent working end-to-end locally (console/dev mode) against a live `kind` cluster
 - [x] Deployed via Helm, running inside the cluster it queries, read-only RBAC enforced
 - [x] Correctly diagnoses seeded failures (ImagePullBackOff, CrashLoopBackOff) and reports them in natural speech
-- [ ] Tool-output shaping for latency/cost *(update as completed)*
-- [ ] Async wrapper for blocking Kubernetes calls *(update as completed)*
+- [x] Tool-output shaping for latency/cost
+- [x] Async wrapper for blocking Kubernetes calls
 - [ ] Demo recording
 - [ ] Observability (Prometheus/OpenTelemetry metrics)
 - [ ] Evals (LiveKit Agents testing framework)
