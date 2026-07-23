@@ -1,5 +1,6 @@
 import sys
 import asyncio
+from typing import Optional
 
 # Fix Windows asyncio IPC Proactor timeout issue when testing on Windows
 if sys.platform == "win32":
@@ -137,7 +138,7 @@ class KubeVoiceAssistant(Agent):
         )
 
     @function_tool
-    async def get_cluster_status(self, context: RunContext, namespace: str = None) -> str:
+    async def get_cluster_status(self, context: RunContext, namespace: Optional[str] = None) -> str:
         """Get cluster health summary across all namespaces or a specific namespace."""
         # Non-blocking async execution offloaded to thread pool
         return await asyncio.to_thread(_sync_get_cluster_status, namespace)
