@@ -69,7 +69,7 @@ helm install kubevoice ../deploy/kubevoice --namespace kubevoice
 - [x] Tool-output shaping for latency/cost
 - [x] Async wrapper for blocking Kubernetes calls
 - [ ] Demo recording
-- [ ] Observability (Prometheus/OpenTelemetry metrics)
+- [x] Observability (Prometheus/OpenTelemetry metrics)
 - [ ] Evals (LiveKit Agents testing framework)
 
 ## What's next

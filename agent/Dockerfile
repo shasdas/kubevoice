@@ -23,8 +23,14 @@ COPY src/ ./src/
 # pods start fast and don't need to fetch models at runtime.
 RUN uv run python src/agent.py download-files
 
+# adding observability metrics support
+ENV PROMETHEUS_MULTIPROC_DIR=/tmp/kubevoice_metrics
+EXPOSE 9091
+
 # Run as non-root
-RUN useradd --create-home agent && chown -R agent:agent /app /opt/uv/python
+RUN mkdir -p /tmp/kubevoice_metrics \
+    && useradd --create-home agent \
+    && chown -R agent:agent /app /opt/uv/python /tmp/kubevoice_metrics
 USER agent
 
 ENTRYPOINT ["uv", "run", "python", "src/agent.py"]

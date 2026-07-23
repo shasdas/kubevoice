@@ -11,8 +11,27 @@ from livekit.agents import AgentServer, AgentSession, Agent, RunContext, functio
 from livekit.agents.inference import TurnDetector
 from livekit.plugins import silero
 from kubernetes import client, config
+from metrics import start_metrics_server, TOOL_CALLS, TOOL_LATENCY, K8S_API_ERRORS
+import time
 
 load_dotenv(".env.local")
+
+def _instrumented(tool_name):
+    def decorator(fn):
+        def wrapper(*args, **kwargs):
+            start = time.monotonic()
+            try:
+                result = fn(*args, **kwargs)
+                TOOL_CALLS.labels(tool_name=tool_name, outcome="success").inc()
+                return result
+            except Exception:
+                TOOL_CALLS.labels(tool_name=tool_name, outcome="error").inc()
+                K8S_API_ERRORS.labels(tool_name=tool_name).inc()
+                raise
+            finally:
+                TOOL_LATENCY.labels(tool_name=tool_name).observe(time.monotonic() - start)
+        return wrapper
+    return decorator
 
 # Initialize Kubernetes Client (Dual-Mode: Local vs In-Cluster)
 _k8s_loaded = False
@@ -33,7 +52,7 @@ def get_core_v1():
 
 
 # --- Synchronous Helper Functions (Run in background thread) ---
-
+@_instrumented("get_cluster_status")
 def _sync_get_cluster_status(namespace: str = None) -> str:
     """Synchronous k8s API call & data shaping logic to run off the main event loop."""
     try:
@@ -78,9 +97,11 @@ def _sync_get_cluster_status(namespace: str = None) -> str:
         return "\n".join(summary)
 
     except Exception as e:
+        K8S_API_ERRORS.labels(tool_name="get_cluster_status").inc()
         return f"Error retrieving cluster status: {str(e)}"
 
 
+@_instrumented("get_namespace_events")
 def _sync_get_namespace_events(namespace: str) -> str:
     """Synchronous k8s event fetching & data shaping logic."""
     try:
@@ -98,7 +119,8 @@ def _sync_get_namespace_events(namespace: str) -> str:
         return "\n".join(summary)
 
     except Exception as e:
-        return f"Error fetching events for namespace '{namespace}': {str(e)}"
+        K8S_API_ERRORS.labels(tool_name="get_cluster_status").inc()
+        return f"Error retrieving cluster status: {str(e)}"
 
 
 # --- LiveKit Voice Agent & Tools ---
@@ -145,4 +167,7 @@ async def my_agent(ctx: agents.JobContext):
     )
 
 if __name__ == "__main__":
+    if "download-files" not in sys.argv:
+        start_metrics_server()
+    
     agents.cli.run_app(server)
