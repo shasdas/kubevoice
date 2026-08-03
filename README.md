@@ -66,7 +66,8 @@ Also worth noting for anyone extending this suite: LLM-judged evals inherit vari
 ## Running it
 
 Full step-by-step setup — installing kind/Helm/kubectl, creating the cluster, seeding demo workloads (including two deliberately broken ones for the agent to diagnose), building the image, and deploying via Helm — is in **[SETUP.md](./SETUP.md)**.
-You will need a DEEPGRAM_API_KEY in agent/.env.local (and in the .env used for the cluster secret). A free Deepgram account includes $200 of credit.
+
+To configure credentials, copy `.env.example` (repo root) to `agent/.env.local` for running the agent locally, and to `agent/.env` for creating the cluster secret. You will need LiveKit credentials and a `DEEPGRAM_API_KEY` — a free Deepgram account includes $200 of credit.
 
 Quick version once everything is installed:
 ```bash
