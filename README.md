@@ -1,6 +1,6 @@
 # KubeVoice
 
-A voice AI agent, built on [LiveKit Agents](https://docs.livekit.io/agents/) (Python), that answers spoken questions about the Kubernetes cluster it runs inside — "How many pods are running in payments?", "Any problems in the cluster?", "What's the status of orders-batch?" — and reports back in natural speech.
+A voice AI agent, built on [LiveKit Agents](https://docs.livekit.io/agents/) (Python), that answers spoken questions about the Kubernetes cluster it runs inside — "How many pods are running in payments?", "Any problems in the cluster?", "What's the status of orders-batch?" — and reports back in natural speech. Speech to text and text to speech run on Deepgram (Nova-3 and Aura-2) via the Deepgram plugin, with LiveKit Cloud handling WebRTC transport and an OpenAI model doing the reasoning.
 
 <!-- Drop demo GIF/video here once recorded:
 ![demo](docs/demo.gif)
@@ -23,9 +23,9 @@ flowchart LR
         RBAC[Read-only ServiceAccount]
         M[Prometheus /metrics]
     end
-    W -->|STT| STT[Speech-to-text]
-    W -->|LLM + tool calls| LLM[LLM]
-    W -->|TTS| TTS[Text-to-speech]
+    W -->|STT| STT[Deepgram Nova-3]
+    W -->|LLM + tool calls| LLM[OpenAI GPT-4.1-mini]
+    W -->|TTS| TTS[Deepgram Aura-2]
     W -->|kubernetes python client| API[Kube API Server]
     W --> M
 ```
@@ -39,6 +39,7 @@ I've spent the last ~18 months building agentic AI systems and wanted to learn t
 ## Design decisions
 
 - **Read-only by design.** The agent's ClusterRole grants only `get`/`list`/`watch` on pods, events, nodes, and deployments — never write access. A voice interface to infrastructure mutation needs confirmation flows, audit trails, and probably a different UX entirely; I scoped that out deliberately rather than bolt it on unsafely. While testing, I asked the agent to dictate an exact `kubectl patch` command for copy-paste — the command it generated was correct every time (confirmed in logs), but the console UI's transcript rendering corrupted the nested JSON quoting on display. That reinforced the read-only decision: precision-critical commands don't belong in a conversational surface, voice or text. See [What's next](#whats-next) for a safer path to remediation.
+- **Direct Deepgram plugin over the inference gateway.** The first version used LiveKit Cloud's inference gateway with a model string (deepgram/nova-3:multi), which works but routes STT through LiveKit's Deepgram account. I swapped to the livekit-plugins-deepgram plugin with my own API key, and moved TTS from Cartesia to Deepgram Aura-2 at the same time. The practical differences: usage and latency are now visible in my own Deepgram console, model parameters are set in code rather than encoded in a string, and the whole voice pipeline sits with one provider. The gateway is the right default for a quick start; the plugin is the right choice once you want to see and control what the STT/TTS layer is doing.
 - **Cloud transport, self-hosted worker.** Rather than self-hosting the full LiveKit media server, the worker uses LiveKit Cloud for WebRTC transport and only the compute-heavy agent logic runs on my cluster. This is the split most LiveKit customers actually run in production, and it kept the project's scope achievable in a focused build rather than turning into a media-infra project.
 - **Tool output is shaped for speech, not for a debugger.** Early on, my Kubernetes tools returned the raw Kubernetes API response straight to the LLM — full `managedFields`, timestamps, owner references, the works. It worked, but it was slow and wasteful: the model was reading kilobytes of noise to say one sentence. Tools now return a small, pre-summarized structure (pod name, namespace, phase, restart count, human-readable reason). Measured latency after the fix: `get_cluster_status` averages ~47ms, `get_namespace_events` ~13-20ms — see [Observability](#observability) for how these numbers were captured.
 - **Blocking Kubernetes calls are moved off the event loop.** The official `kubernetes` Python client is synchronous; calling it directly inside an async tool blocked the event loop long enough to visibly starve the VAD (`inference is slower than realtime`, 0.83s delay, in the logs). Wrapping those calls in `asyncio.to_thread` fixed it — the same Prometheus histogram that surfaced the original delay now confirms tool latency staying almost entirely under 100ms.
@@ -65,6 +66,7 @@ Also worth noting for anyone extending this suite: LLM-judged evals inherit vari
 ## Running it
 
 Full step-by-step setup — installing kind/Helm/kubectl, creating the cluster, seeding demo workloads (including two deliberately broken ones for the agent to diagnose), building the image, and deploying via Helm — is in **[SETUP.md](./SETUP.md)**.
+You will need a DEEPGRAM_API_KEY in agent/.env.local (and in the .env used for the cluster secret). A free Deepgram account includes $200 of credit.
 
 Quick version once everything is installed:
 ```bash
@@ -98,6 +100,7 @@ curl -s localhost:9091/metrics | grep kubevoice
 - [x] Async wrapper for blocking Kubernetes calls
 - [x] Observability — multiprocess-aware Prometheus metrics (tool calls, latency, errors), verified in-cluster
 - [x] Evals — 5 behavioral tests (greeting, tool-use correctness, grounding, graceful degradation, misuse resistance); caught a real type-hint bug along the way
+- [x] STT and TTS moved to the Deepgram plugin (Nova-3, Aura-2) with metrics-accuracy fixes to tool error counting
 - [ ] Demo recording
 
 ## What's next
