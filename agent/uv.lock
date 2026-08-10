@@ -373,6 +373,7 @@ dependencies = [
     { name = "kubernetes" },
     { name = "livekit-agents", extra = ["silero", "turn-detector"] },
     { name = "livekit-plugins-deepgram" },
+    { name = "livekit-plugins-elevenlabs" },
     { name = "prometheus-client" },
     { name = "python-dotenv" },
 ]
@@ -388,6 +389,7 @@ requires-dist = [
     { name = "kubernetes", specifier = ">=36.0.3" },
     { name = "livekit-agents", extras = ["silero", "turn-detector"], specifier = "~=1.4" },
     { name = "livekit-plugins-deepgram" },
+    { name = "livekit-plugins-elevenlabs" },
     { name = "prometheus-client", specifier = ">=0.25.0" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
 ]
@@ -881,6 +883,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/0d/3c/fd3f9b2398fa51b410f6dcedd188a72daf92d15b526c042bf47e631e516d/livekit_plugins_deepgram-1.6.6.tar.gz", hash = "sha256:384d38b9098c9262c380208053e07b48e8a4dd1526a42cef889b9d60e76ac0db", size = 22607, upload-time = "2026-07-18T04:17:27.994Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fb/e9/4eb44bfd67bc6b9d5f448639def94016a57b08af2ba532d7343c3627e10a/livekit_plugins_deepgram-1.6.6-py3-none-any.whl", hash = "sha256:c6fb33b397495519089f56f049c564cbc7e1f2a9f1a4f656cfab531f68b9e582", size = 26081, upload-time = "2026-07-18T04:17:26.923Z" },
+]
+
+[[package]]
+name = "livekit-plugins-elevenlabs"
+version = "1.6.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "livekit-agents", extra = ["codecs"] },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/39/ee/761c44b5ebb3327225676a6695387e22c2fa6f958be037718dbec0ed07bc/livekit_plugins_elevenlabs-1.6.6.tar.gz", hash = "sha256:51f7f441f3adadf5683858f72ab1550d07c6570af6c2fac9058f1f7728a6754e", size = 18691, upload-time = "2026-07-18T04:17:28.417Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/75/20/5224d2fc889a58e2dd84a1ab345f72f3b7f3373d7f3c811e7c357bd27f4d/livekit_plugins_elevenlabs-1.6.6-py3-none-any.whl", hash = "sha256:9e0af2f361d4f22d64971dc84cc45803d1048828c25ff6c714483caba80e6d2b", size = 21431, upload-time = "2026-07-18T04:17:27.354Z" },
 ]
 
 [[package]]

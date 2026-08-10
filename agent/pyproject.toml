@@ -8,6 +8,7 @@ dependencies = [
     "prometheus-client>=0.25.0",
     "python-dotenv>=1.2.2",
     "livekit-plugins-deepgram",
+    "livekit-plugins-elevenlabs",
 ]
 
 [dependency-groups]

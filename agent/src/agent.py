@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from livekit import agents
 from livekit.agents import AgentServer, AgentSession, Agent, RunContext, function_tool
 from livekit.agents.inference import TurnDetector
-from livekit.plugins import deepgram, silero
+from livekit.plugins import deepgram, elevenlabs, silero
 from kubernetes import client, config
 from metrics import start_metrics_server, TOOL_CALLS, TOOL_LATENCY, K8S_API_ERRORS
 import time
@@ -155,7 +155,10 @@ async def my_agent(ctx: agents.JobContext):
     session = AgentSession(
         stt=deepgram.STT(model="nova-3", language="multi"),
         llm="openai/gpt-4.1-mini",
-        tts=deepgram.TTS(model="aura-2-thalia-en"),
+        tts=elevenlabs.TTS(
+            voice_id="bIHbv24MWmeRgasZH58o",
+            model="eleven_turbo_v2_5",
+        ),
         vad=silero.VAD.load(),
         turn_detection=TurnDetector(),
     )
