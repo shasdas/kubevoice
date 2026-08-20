@@ -13,12 +13,16 @@ A voice AI agent that answers spoken questions about the Kubernetes cluster it r
 - Speaks the answer back in a form meant for listening, not reading, summarized, not a JSON dump.
 - Runs the same code locally against a `kind` cluster during development and inside the cluster in production, via one Helm chart.
 - Exposes Prometheus metrics for its own tool usage and latency, and has an automated eval suite covering tool-use correctness, grounding, and graceful failure.
+- Ships with a custom React (Next.js) web UI, deployed into the same cluster, showing the live conversation transcript alongside the voice, so you interact with the agent directly rather than through LiveKit's hosted console.
 
 ```mermaid
 flowchart LR
-    U[User mic / browser] -->|WebRTC| LK[LiveKit Cloud\nmedia transport]
+    U[User browser] -->|loads UI| FE[KubeVoice Web UI\nNext.js]
+    FE -->|mints room token| U
+    U -->|WebRTC| LK[LiveKit Cloud\nmedia transport]
     LK <-->|room connection| W[Agent Worker\nPython - livekit-agents]
     subgraph K8s [Kubernetes cluster]
+        FE
         W
         RBAC[Read-only ServiceAccount]
         M[Prometheus /metrics]
@@ -64,6 +68,14 @@ Writing these caught a real bug: `get_cluster_status`'s `namespace` parameter wa
 
 Also worth noting for anyone extending this suite: LLM-judged evals inherit variance from both the agent's own live model call and the judge's. Two tests flickered between pass/fail across identical runs early on, not from a code change, but because natural-language intent assertions need to target the actual invariant that matters (e.g. "must not fabricate weather data") rather than one specific phrasing the model happened to produce once. Tightening the test inputs and loosening over-literal intent wording resolved this; it's a real characteristic of this testing style, not something to chase away with retries.
 
+## Web UI
+
+A custom React frontend (built on LiveKit's `agent-starter-react`, Next.js) runs as its own pod in the cluster and is reached via `kubectl port-forward`. It shows the live conversation as text, both what you say and what the agent replies, next to an animated voice visualizer, so the whole diagnose → fix → verify flow can be followed by reading as well as listening. The welcome screen is branded for KubeVoice and shows the voice pipeline (Deepgram STT → OpenAI LLM → Deepgram TTS, with Silero VAD and turn detection).
+
+One architecture note worth being explicit about: the UI only renders the interface and mints a LiveKit room token server-side from the project credentials. The actual voice/WebRTC media still flows browser → LiveKit Cloud → agent worker directly, so port-forwarding reaches the UI's web page, not the audio path. Keeping LiveKit as the pipeline (rather than rebuilding on raw STT/TTS) is deliberate: the turn detection, barge-in, and preemptive-generation behaviour that make the conversation feel natural are exactly what that pipeline provides. The stack stays consistent end to end, Deepgram for speech, LiveKit for the conversation pipeline.
+
+The agent registers without an explicit `agent_name` so it auto-dispatches into any room the UI creates; a multi-agent setup would reinstate explicit dispatch and request the agent by name in the token route.
+
 ## Running it
 
 Full step-by-step setup, installing kind/Helm/kubectl, creating the cluster, seeding demo workloads (including two deliberately broken ones for the agent to diagnose), building the image, and deploying via Helm, is in **[SETUP.md](./SETUP.md)**.
@@ -91,6 +103,13 @@ helm install kubevoice deploy/kubevoice --namespace kubevoice
 # check metrics once deployed
 kubectl -n kubevoice port-forward deploy/kubevoice 9091:9091
 curl -s localhost:9091/metrics | grep kubevoice
+
+# build + deploy the web UI, then open http://localhost:3000
+cd ../frontend && pnpm install
+docker build -t kubevoice-frontend:0.1.0 --build-arg NEXT_PUBLIC_LIVEKIT_URL=$LIVEKIT_URL .
+kind load docker-image kubevoice-frontend:0.1.0 --name kubevoice
+helm upgrade kubevoice ../deploy/kubevoice --namespace kubevoice
+kubectl -n kubevoice port-forward svc/kubevoice-frontend 3000:3000
 ```
 
 ## Current state
@@ -103,11 +122,11 @@ curl -s localhost:9091/metrics | grep kubevoice
 - [x] Observability, multiprocess-aware Prometheus metrics (tool calls, latency, errors), verified in-cluster
 - [x] Evals, 5 behavioral tests (greeting, tool-use correctness, grounding, graceful degradation, misuse resistance); caught a real type-hint bug along the way
 - [x] Pluggable voice layer, runs Deepgram (Nova-3, Aura-2) via plugin, with metrics-accuracy fixes to tool error counting
+- [x] Custom in-cluster web UI (Next.js) with live transcript and animated voice visualizer, KubeVoice-branded
 - [ ] Demo recording
 
 ## What's next
 
-- **Custom web frontend**, currently interacting through LiveKit Cloud's hosted agent console; a purpose-built UI (e.g. based on LiveKit's `agent-starter-react`) would let this run as a standalone demo independent of the Cloud dashboard, and is the more realistic shape of how a customer would actually integrate this into their own tooling.
 - **Write operations with confirmation flows**, currently strictly read-only by design; a safe path to remediation (e.g. applying a pre-validated patch via the Kubernetes API directly, with explicit confirmation, rather than dictating shell syntax for a human to retype) is the natural next step.
 - **Voice-pipeline metrics and session observability**, wire up LiveKit's per-turn AI-component metrics (LLM/STT/TTS latency, end-of-turn delay) and enable LiveKit Cloud's Agent Observability dashboard for session replay and transcripts.
 - **SIP/telephony ingress**, LiveKit supports dialing in over the phone network; a natural extension for an on-call use case.
@@ -120,7 +139,8 @@ agent/                  # LiveKit Agents worker (Python, uv-managed) + Dockerfil
   src/agent.py          # agent, tools, entrypoint
   src/metrics.py         # multiprocess-aware Prometheus metrics
   tests/test_agent.py   # eval suite (LiveKit Agents testing framework)
+frontend/               # custom React (Next.js) web UI, deployed into the cluster
 demo-cluster/           # kind cluster config + seed manifests (incl. deliberately broken pods)
-deploy/kubevoice/       # Helm chart: Deployment, read-only RBAC, health + metrics ports
+deploy/kubevoice/       # Helm chart: agent + frontend Deployments, read-only RBAC, health + metrics ports
 SETUP.md                # full step-by-step build log and setup instructions
 ```

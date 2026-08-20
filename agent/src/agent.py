@@ -150,7 +150,7 @@ class KubeVoiceAssistant(Agent):
 
 server = AgentServer()
 
-@server.rtc_session(agent_name="kubevoice")
+@server.rtc_session() # (agent_name="kubevoice") ## dropped the argument so it auto-dispatches into any new room
 async def my_agent(ctx: agents.JobContext):
     session = AgentSession(
         stt=deepgram.STT(model="nova-3", language="multi"),
